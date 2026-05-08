@@ -19,34 +19,30 @@ Reconocimiento en tiempo real usando el modelo entrenado.
 Mantiene una ventana deslizante de SEQ_LENGTH frames.
 
 
-1. Instalación y Configuración
-Clona el repositorio y prepara el entorno:
+# Sign Language Recognition
 
+Guía de instalación y uso del sistema.
 
-git clone <url-del-repo>
-cd <nombre-directorio>
-pip install -r requirements.txt
-2. Recolección de Datos
-Ejecuta el script para capturar las señas mediante video:
+## Pasos de Instalación
 
+1. Clonar el repositorio:
+   git clone <URL_DEL_REPOSITORIO>
+   cd <NOMBRE_DEL_DIRECTORIO>
 
-python collect_data.py
-Asegúrate de grabar suficientes muestras para cada seña antes de pasar al siguiente paso.
+2. Instalar dependencias:
+   pip install -r requirements.txt
 
-3. Entrenamiento
-Una vez recolectados los datos, inicia el entrenamiento del modelo:
+## Uso del Sistema
 
+1. Recolección de datos:
+   Ejecuta el script para grabar los videos de las señas:
+   python collect_data.py
 
-python train_model.py
-Al finalizar, el script generará automáticamente los siguientes archivos:
+2. Entrenamiento:
+   Una vez recolectados los videos, inicia el entrenamiento:
+   python train_model.py
+   (Esto generará los archivos sign_model.keras y labels.json)
 
-sign_model.keras
-
-labels.json
-
-4. Inferencia (Prueba en vivo)
-Para ejecutar el reconocimiento en tiempo real con la cámara:
-
-
-python inference.py
-
+3. Inferencia:
+   Para probar el modelo en tiempo real con la cámara:
+   python inference.py
