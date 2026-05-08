@@ -22,21 +22,21 @@ Mantiene una ventana deslizante de SEQ_LENGTH frames.
 1. Instalación y Configuración
 Clona el repositorio y prepara el entorno:
 
-Bash
+
 git clone <url-del-repo>
 cd <nombre-directorio>
 pip install -r requirements.txt
 2. Recolección de Datos
 Ejecuta el script para capturar las señas mediante video:
 
-Bash
+
 python collect_data.py
 Asegúrate de grabar suficientes muestras para cada seña antes de pasar al siguiente paso.
 
 3. Entrenamiento
 Una vez recolectados los datos, inicia el entrenamiento del modelo:
 
-Bash
+
 python train_model.py
 Al finalizar, el script generará automáticamente los siguientes archivos:
 
@@ -47,6 +47,6 @@ labels.json
 4. Inferencia (Prueba en vivo)
 Para ejecutar el reconocimiento en tiempo real con la cámara:
 
-Bash
+
 python inference.py
 
