@@ -19,16 +19,34 @@ Reconocimiento en tiempo real usando el modelo entrenado.
 Mantiene una ventana deslizante de SEQ_LENGTH frames.
 
 
-Orden de ejecucion
-Clonar repo
-moverse al directorio de Instalacion
-Ejecutar pip install -r requirements.txt
-Una vez terminada la instalacion Hacer 
-python collect_data.py
-Llenar los videos de las senas
-Una vez llenado, ejecutar
-python train_model.py
-al ejecutarlo se iniciara el entrenamiento y generara  → sign_model.keras + labels.json
-Una vez terminado el entrenamiento se puede ejecutar inference.py, alli se abrira la ventana con analisis en tiempo real
+1. Instalación y Configuración
+Clona el repositorio y prepara el entorno:
 
+Bash
+git clone <url-del-repo>
+cd <nombre-directorio>
+pip install -r requirements.txt
+2. Recolección de Datos
+Ejecuta el script para capturar las señas mediante video:
+
+Bash
+python collect_data.py
+Asegúrate de grabar suficientes muestras para cada seña antes de pasar al siguiente paso.
+
+3. Entrenamiento
+Una vez recolectados los datos, inicia el entrenamiento del modelo:
+
+Bash
+python train_model.py
+Al finalizar, el script generará automáticamente los siguientes archivos:
+
+sign_model.keras
+
+labels.json
+
+4. Inferencia (Prueba en vivo)
+Para ejecutar el reconocimiento en tiempo real con la cámara:
+
+Bash
+python inference.py
 
