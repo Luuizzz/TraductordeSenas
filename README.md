@@ -25,9 +25,7 @@ Guía de instalación y uso del sistema.
 
 ## Pasos de Instalación
 
-1. Clonar el repositorio:
-   git clone <URL_DEL_REPOSITORIO>
-   cd <NOMBRE_DEL_DIRECTORIO>
+1. Clonar el repositorio
 
 2. Instalar dependencias:
    pip install -r requirements.txt
