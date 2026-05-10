@@ -60,7 +60,30 @@ def extract_features(hand_result, pose_result) -> np.ndarray:
     if pose_result.pose_landmarks:
         pose = np.array([[lm.x, lm.y, lm.z] for lm in pose_result.pose_landmarks[0]]).flatten()
     return np.concatenate([rh, lh, pose])
+def draw_landmarks(frame, hand_result, pose_result):
+    h, w = frame.shape[:2]
 
+    # Conexiones de mano (21 puntos)
+    HAND_CONNECTIONS = mp.solutions.hands.HAND_CONNECTIONS  # aún accesible como constante
+
+    # ── Manos ──
+    if hand_result.hand_landmarks:
+        for hand_landmarks in hand_result.hand_landmarks:
+            pts = [(int(lm.x * w), int(lm.y * h)) for lm in hand_landmarks]
+            for a, b in HAND_CONNECTIONS:
+                cv2.line(frame, pts[a], pts[b], (0, 200, 255), 1)
+            for pt in pts:
+                cv2.circle(frame, pt, 3, (255, 255, 255), -1)
+
+    # ── Pose ──
+    if pose_result.pose_landmarks:
+        POSE_CONNECTIONS = mp.solutions.pose.POSE_CONNECTIONS
+        lms = pose_result.pose_landmarks[0]
+        pts = [(int(lm.x * w), int(lm.y * h)) for lm in lms]
+        for a, b in POSE_CONNECTIONS:
+            cv2.line(frame, pts[a], pts[b], (0, 255, 120), 1)
+        for pt in pts:
+            cv2.circle(frame, pt, 3, (255, 0, 0), -1)
 # ── Inference loop ────────────────────────────────────────────────────────────
 def run():
     cap = cv2.VideoCapture(0)
@@ -109,7 +132,7 @@ def run():
                     confidence_val = pred_conf
                 else:
                     current_sign = ""
-
+        draw_landmarks(frame, h_res, p_res)
         # ── HUD ──────────────────────────────────────────────────────────────
         h, w = frame.shape[:2]
         cv2.rectangle(frame, (0, h - 80), (w, h), (0, 0, 0), -1)

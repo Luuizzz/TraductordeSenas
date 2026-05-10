@@ -13,7 +13,8 @@ import urllib.request
 
 from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision as mp_vision
-
+from mediapipe.framework.formats import landmark_pb2
+from mediapipe import solutions
 
 # ── Config ────────────────────────────────────────────────────────────────────
 SIGNS = [
@@ -87,39 +88,20 @@ def build_hand_landmarker():
 def draw_hands(frame, hand_result):
     if not hand_result or not hand_result.hand_landmarks:
         return
-
-    h, w = frame.shape[:2]
-
-    # conexiones de la mano
-    HAND_CONNECTIONS = [
-        (0,1),(1,2),(2,3),(3,4),
-        (0,5),(5,6),(6,7),(7,8),
-        (5,9),(9,10),(10,11),(11,12),
-        (9,13),(13,14),(14,15),(15,16),
-        (13,17),(17,18),(18,19),(19,20),
-        (0,17)
-    ]
-
     for hand_landmarks in hand_result.hand_landmarks:
+        proto = landmark_pb2.NormalizedLandmarkList()
+        proto.landmark.extend([
+            landmark_pb2.NormalizedLandmark(x=lm.x, y=lm.y, z=lm.z)
+            for lm in hand_landmarks
+        ])
+        solutions.drawing_utils.draw_landmarks(
+            frame,
+            proto,
+            solutions.hands.HAND_CONNECTIONS,
+            solutions.drawing_styles.get_default_hand_landmarks_style(),
+            solutions.drawing_styles.get_default_hand_connections_style(),
+        )
 
-        # Dibujar conexiones
-        for start_idx, end_idx in HAND_CONNECTIONS:
-
-            x1 = int(hand_landmarks[start_idx].x * w)
-            y1 = int(hand_landmarks[start_idx].y * h)
-
-            x2 = int(hand_landmarks[end_idx].x * w)
-            y2 = int(hand_landmarks[end_idx].y * h)
-
-            cv2.line(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
-
-        # Dibujar puntos
-        for lm in hand_landmarks:
-
-            x = int(lm.x * w)
-            y = int(lm.y * h)
-
-            cv2.circle(frame, (x, y), 4, (0, 255, 0), -1)
 # ── Extracción de features ────────────────────────────────────────────────────
 def extract_features(hand_result) -> np.ndarray:
     rh = np.zeros(63)
