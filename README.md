@@ -36,11 +36,14 @@ Guía de instalación y uso del sistema.
    Ejecuta el script para grabar los videos de las señas:
    python collect_data.py
 
+   como ya esta entrenado solo ejecutar para instalar mediapipe
+
 2. Entrenamiento:
    Una vez recolectados los videos, inicia el entrenamiento:
    python train_model.py
    (Esto generará los archivos sign_model.keras y labels.json)
+   (ahora mismo con el clone queda listo para no entrenarlo)
 
-3. Inferencia:
+4. Inferencia:
    Para probar el modelo en tiempo real con la cámara:
    python inference.py
