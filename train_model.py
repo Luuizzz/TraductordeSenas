@@ -1,14 +1,9 @@
 """
-train_model.py - v3
-Compatible con collect_data.py v3 (manos únicamente, 126 features).
-Descubre clases dinámicamente desde data/ — sin lista hardcodeada.
-Lee todos los .npy de cada carpeta sin límite de archivos.
-
-Estructura esperada:
-  data/
-    hola/     *.npy   shape (30, 126)
-    bien/     *.npy
-    ...       (cualquier carpeta nueva se incluye automáticamente)
+train_model.py - v4
+Fixes:
+  1. Augmentation solo sobre secuencias donde TODOS los frames tienen manos
+  2. Clase sintética "ninguna" con secuencias de ceros + ruido mínimo
+  3. El modelo aprende a callar cuando no hay señal
 """
 
 import os
@@ -28,13 +23,16 @@ DATA_DIR   = "data"
 MODEL_OUT  = "sign_model.keras"
 LABELS_OUT = "labels.json"
 SEQ_LENGTH = 30
-FEATURES   = 126   # 63 mano_d + 63 mano_i  (sin pose, sin cara)
+FEATURES   = 126
 EPOCHS     = 100
 BATCH_SIZE = 16
 
-# ── Descubrimiento dinámico de clases ─────────────────────────────────────────
+# Clase reservada para "sin seña" — no necesita carpeta en data/
+NONE_CLASS        = "ninguna"
+NONE_SAMPLES      = 200   # secuencias sintéticas de silencio
+
+# ── Descubrimiento dinámico ───────────────────────────────────────────────────
 def discover_classes(data_dir: str) -> list:
-    """Subcarpetas de data/ que tengan al menos un .npy válido."""
     classes = []
     for name in sorted(os.listdir(data_dir)):
         path = os.path.join(data_dir, name)
@@ -44,10 +42,10 @@ def discover_classes(data_dir: str) -> list:
         if npy_files:
             classes.append(name)
         else:
-            print(f"  [aviso] '{name}' existe pero no tiene .npy — ignorada")
+            print(f"  [aviso] '{name}' sin .npy — ignorada")
     return classes
 
-# ── Cargar dataset ────────────────────────────────────────────────────────────
+# ── Carga ─────────────────────────────────────────────────────────────────────
 def load_dataset(classes: list):
     X, y = [], []
     for sign in classes:
@@ -62,22 +60,63 @@ def load_dataset(classes: list):
                 valid += 1
             else:
                 skipped += 1
-                print(f"    [skip] {sign}/{f} shape={seq.shape} — esperado ({SEQ_LENGTH},{FEATURES})")
+                print(f"    [skip] {sign}/{f} shape={seq.shape}")
         print(f"  {sign:15s}: {valid} válidas"
               + (f"  ({skipped} saltadas)" if skipped else ""))
     return np.array(X), np.array(y)
 
-# ── Augmentation ──────────────────────────────────────────────────────────────
+# ── Detectar si una secuencia tiene manos en todos los frames ─────────────────
+def has_hands(seq: np.ndarray, threshold: float = 0.01) -> bool:
+    """
+    Un frame sin manos = vector de ceros.
+    Considera que hay manos si la norma media por frame supera el threshold.
+    """
+    norms = np.linalg.norm(seq, axis=1)   # (30,)
+    return float(np.mean(norms)) > threshold
+
+# ── Augmentation — SOLO sobre secuencias con manos ───────────────────────────
 def augment_dataset(X: np.ndarray, y: np.ndarray, n: int = 3):
-    """Genera n variantes por muestra con ruido y escala leve."""
     X_aug, y_aug = [], []
+    skipped = 0
     for seq, label in zip(X, y):
+        if not has_hands(seq):
+            skipped += 1
+            continue
         for _ in range(n):
-            noise = np.random.normal(0, 0.01, seq.shape)
-            scale = np.random.uniform(0.95, 1.05)
+            noise = np.random.normal(0, 0.005, seq.shape)  # ruido más suave
+            scale = np.random.uniform(0.97, 1.03)          # escala más conservadora
             X_aug.append(seq * scale + noise)
             y_aug.append(label)
+    if skipped:
+        print(f"  [augmentation] {skipped} secuencias sin manos excluidas del aug")
     return np.array(X_aug), np.array(y_aug)
+
+# ── Clase "ninguna" sintética ─────────────────────────────────────────────────
+def generate_none_class(n: int = NONE_SAMPLES) -> tuple:
+    """
+    Secuencias de ceros con ruido muy pequeño — representa ausencia de seña.
+    También incluye variantes con una mano apareciendo y desapareciendo
+    para que el modelo aprenda transiciones.
+    """
+    X_none = []
+
+    # Puro silencio con ruido mínimo
+    for _ in range(n // 2):
+        seq = np.random.normal(0, 0.002, (SEQ_LENGTH, FEATURES))
+        X_none.append(seq)
+
+    # Mano que aparece brevemente (movimiento parcial)
+    for _ in range(n // 2):
+        seq = np.zeros((SEQ_LENGTH, FEATURES))
+        start = np.random.randint(0, SEQ_LENGTH - 5)
+        duration = np.random.randint(2, 6)
+        for t in range(start, min(start + duration, SEQ_LENGTH)):
+            seq[t] = np.random.normal(0.5, 0.1, FEATURES)  # landmarks aleatorios
+        seq += np.random.normal(0, 0.002, seq.shape)
+        X_none.append(seq)
+
+    y_none = np.array([NONE_CLASS] * n)
+    return np.array(X_none), y_none
 
 # ── Modelo ────────────────────────────────────────────────────────────────────
 def build_model(num_classes: int) -> tf.keras.Model:
@@ -106,24 +145,31 @@ def train():
     print(f"\nDescubriendo clases en '{DATA_DIR}/'...")
     classes = discover_classes(DATA_DIR)
     if not classes:
-        print("❌ No se encontraron carpetas con datos. Ejecuta collect_data.py primero.")
+        print("❌ No hay datos. Ejecuta collect_data.py primero.")
         return
-    print(f"  Clases: {classes}\n")
+    print(f"  Clases reales: {classes}")
 
-    print("Cargando dataset...")
+    print("\nCargando dataset...")
     X, y_str = load_dataset(classes)
-    print(f"\n  Total cargado: {len(X)} muestras  shape={X.shape}")
+    print(f"  Total cargado: {len(X)}  shape={X.shape}")
 
     if len(X) == 0:
         print("❌ Ningún archivo cargado.")
         return
 
-    # Augmentation
-    print("\nAplicando augmentation x3...")
+    # Augmentation solo sobre secuencias con manos detectadas
+    print("\nAplicando augmentation (x3, solo secuencias con manos)...")
     X_aug, y_aug = augment_dataset(X, y_str, n=3)
     X     = np.concatenate([X, X_aug])
     y_str = np.concatenate([y_str, y_aug])
-    print(f"  Total tras augmentation: {len(X)} muestras")
+    print(f"  Total tras augmentation: {len(X)}")
+
+    # Añadir clase "ninguna"
+    print(f"\nGenerando clase '{NONE_CLASS}' ({NONE_SAMPLES} muestras sintéticas)...")
+    X_none, y_none = generate_none_class(NONE_SAMPLES)
+    X     = np.concatenate([X, X_none])
+    y_str = np.concatenate([y_str, y_none])
+    print(f"  Total final: {len(X)}")
 
     # Encoding
     le        = LabelEncoder()
@@ -136,7 +182,7 @@ def train():
     )
     print(f"Train: {len(X_train)}  |  Val: {len(X_val)}")
 
-    model = build_model(num_classes=len(classes))
+    model = build_model(num_classes=len(le.classes_))
     model.summary()
 
     callbacks = [
